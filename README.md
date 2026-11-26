@@ -2,6 +2,8 @@
 
 ContamScan is a software toolkit for the suspect and non-targeted screening of chemical risk substances in food contact materials (FCMs) using high-resolution mass spectrometry (HRMS) data. It consists of two modules: **ContamScreen** (machine learning–based screening) and **ContamConfirm** (two-layer molecular network–based structural annotation).
 
+A ready-to-run Windows package is available on the Releases page for users without a Python environment.
+
 ---
 
 ## 1. Overview
@@ -35,7 +37,7 @@ Food packaging systems contain numerous additives and non-intentionally added su
 - spectral_entropy (for seed annotation)
 - tools (bundled with this repository)
 
-These dependencies are required only when running ContamScan from source. Users of the Windows executable (Section 5.3) do not need to install Python or these packages.
+These dependencies are required only when running ContamScan from source. Users of the Windows package (Section 5.4) do not need to install Python or these packages.
 
 Install all dependencies with:
 
@@ -48,6 +50,8 @@ The pinned versions are listed in `requirements.txt`.
 ## 3. Model file and files
 
 ContamScreen requires a pretrained model file (`.h5`). Because of its size (~275 MB), the model is not stored in this repository. Download it from the Releases page of this repository and place it in the `model/` directory.
+
+A ready-to-run Windows package is also available on the Releases page. It is distributed as a zip archive containing the executable and all required dependencies; no Python installation is needed.
 
 Expected project layout:
 
@@ -162,9 +166,16 @@ Before running, set the input paths in `seed_annotation.py` (`library.csv` path 
 
 The script writes an annotated Excel file containing `Matched_Name`, `CL`, and `Similarity_Score` columns.
 
-### 5.4 Windows executable (optional)
+### 5.4 Windows executable package (optional)
 
-A standalone Windows executable is provided on the Releases page for users who prefer not to configure a Python environment. The executable still requires the model file described in Section 3.
+For users who prefer not to configure a Python environment, a ready-to-run Windows package is provided on the Releases page as a zip archive (e.g. `ContamScan.zip`). The archive contains the executable and all required dependencies. To use it:
+
+1. Download the zip archive from the Releases page.
+2. Extract the archive to a local folder.
+3. Place the pretrained model file (Section 3) in the expected location, if it is not already bundled.
+4. Double-click `ContamScan.exe` inside the extracted folder to run the software.
+
+No Python installation or `pip install` is required for this package.
 
 ---
 
@@ -215,6 +226,7 @@ A standalone Windows executable is provided on the Releases page for users who p
 ## 8. Notes and limitations
 
 - ContamScreen requires the pretrained model file described in Section 3. Without it, ContamScreen cannot run.
+- The Windows package on the Releases page is self-contained; users of this package do not need to install Python or the dependencies listed in Section 2.
 - The classifier assigns spectra to one of six predefined classes; spectra not belonging to these classes may still receive a label and should be treated with caution.
 - Similarity and mass-difference edges are **annotation hypotheses**, not confirmed structures. Final identification requires reference standards or orthogonal evidence.
 - Seed annotation results are library-based matches; confidence level 0 indicates a precursor m/z and RT match with similarity below 0.7 and should be interpreted cautiously.
