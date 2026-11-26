@@ -1,1 +1,175 @@
 # ContamScan
+
+ContamScan is a software toolkit for the suspect and untargeted screening of chemical risk substances in food contact materials (FCMs) using high-resolution mass spectrometry (HRMS) data. It consists of two modules: **ContamScreen** (machine learning–based screening) and **ContamConfirm** (two-layer molecular network–based structural annotation).
+
+---
+
+## 1. Overview
+
+Food packaging systems contain numerous additives and non-intentionally added substances (NIAS), which make traditional target analysis insufficient for comprehensive safety assessment. ContamScan addresses this by combining:
+
+- **ContamScreen**: A machine learning classifier that assigns unknown MS/MS spectra to one of six chemical classes based on binned fragment-ion and neutral-loss features.
+- **ContamConfirm**: A two-layer molecular network (spectral similarity network + mass difference network) for rapid structural annotation of screened substances.
+
+### Covered chemical classes
+
+| Class ID | Class name |
+|----------|------------|
+| 1 | Alcoholamines |
+| 2 | Parabens |
+| 3 | Phthalates |
+| 4 | Organophosphates |
+| 5 | Citric acid esters |
+| 6 | Perfluorinated compounds |
+
+---
+
+## 2. Requirements
+
+- Python 3.8+
+- NumPy
+- pandas
+- TensorFlow (2.x)
+- matchms
+- openpyxl
+
+Install dependencies:
+
+```bash
+pip install numpy pandas tensorflow matchms openpyxl
+```
+
+---
+
+## 3. Input data
+
+### 3.1 ContamScreen input (peak list)
+
+An Excel file (`.xlsx`) containing at least the following columns:
+
+| Column | Description |
+|--------|-------------|
+| `Spectrum reference file name` | Source file name of the spectrum |
+| `Average Mz` | Precursor m/z |
+| `Alignment ID` | Unique spectrum identifier |
+| `Average Rt(min)` | Retention time (min) |
+| `MS/MS spectrum` | MS/MS peaks in `mz:intensity mz:intensity` format |
+| `Adduct type` | Adduct type (e.g. `[M+H]+`, `[M-H]-`) |
+
+Adduct filtering is applied automatically according to the ionization mode:
+
+- Positive mode (`P`): `[M+H]+`, `[M+NH4]+`
+- Negative mode (`N`): `[M-H]-`
+
+### 3.2 ContamConfirm input
+
+1. **Node list** (`.xlsx`): sample spectra, with at least `PEPMASS` and `MSMS` columns. A `Name` / `name` / `Compound_Name` column is optional.
+2. **Seed list** (`.xlsx`): reference/seed spectra, with at least `PEPMASS` and `MSMS` columns. A `Class` column is optional.
+3. **PMD database** (`.xlsx`): formula-difference database, must contain a `Mass` column and a `Formula_Difference` column.
+
+The `MSMS` column should contain peaks separated by `;`, each in `mz intensity` format (e.g. `101.0234 0.85; 145.0678 0.42`).
+
+---
+
+## 4. Usage
+
+### 4.1 ContamScreen
+
+```python
+from contam_core import run_contam_screen
+
+run_contam_screen(
+    peak_list_path="peak_list.xlsx",
+    model_path="screen_model.h5",
+    output_path="screen_result.xlsx",
+    ion_mode="P",              # "P" for positive, "N" for negative
+    progress_callback=print,   # optional
+    log_callback=print,        # optional
+)
+```
+
+**Output**: an Excel file containing `ID`, `FILES`, `PEPMASS`, `RT`, `MSMS`, `pred_probability`, `predicted_classID`, and `predicted_class`.
+
+### 4.2 ContamConfirm
+
+```python
+from contam_core import run_contam_confirm
+
+run_contam_confirm(
+    node_list_path="node_list.xlsx",
+    seed_list_path="seed_list.xlsx",
+    formula_db_path="pmd_database.xlsx",
+    output_path="confirm_result.xlsx",
+    similarity_threshold=0.7,
+    similarity_top_n=10,
+    pmd_tolerance=0.01,
+    pmd_top_n=3,
+    progress_callback=print,   # optional
+    log_callback=print,        # optional
+)
+```
+
+**Output**: an Excel file with one sheet per chemical class (columns include `Edge_type`, `Index_1/2`, `Source_1/2`, `NAME_1/2`, `ID_1/2`, `PEPMASS_1/2`, `Similarity_score`, `Matched_Peaks`, `Mass`, `Formula_Difference`) plus a `Summary` sheet.
+
+---
+
+## 5. Key parameters
+
+### ContamScreen
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `start_mass` | 50 Da | Lower m/z bound for fragment binning |
+| `end_mass` | 800 Da | Upper m/z bound for fragment binning |
+| `bin_width` | 0.01 Da | Bin width for fragment and neutral-loss features |
+| `start_neu` | 12 Da | Lower neutral-loss bound |
+| `end_neu` | 200 Da | Upper neutral-loss bound |
+| `ms2_error` | 0.01 Da | Tolerance for neutral-loss deduplication |
+
+### ContamConfirm
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `similarity_threshold` | 0.7 | Minimum modified cosine score to keep a similarity edge |
+| `similarity_top_n` | 10 | Max similarity edges retained per node |
+| `pmd_tolerance` | 0.01 Da | Mass tolerance for formula-difference matching |
+| `pmd_top_n` | 3 | Max mass-difference edges retained per node |
+
+---
+
+## 6. Method summary
+
+1. **Spectrum preprocessing**: peaks are normalized to the base peak, filtered (intensity > 1%, m/z below precursor), and converted to neutral-loss features.
+2. **Feature encoding**: fragment ions and neutral losses are binned (0.01 Da) into a fixed-length vector, with the maximum binned intensity retained per bin.
+3. **Classification**: a trained neural network predicts the chemical class and confidence for each spectrum; classes incompatible with the ionization mode are removed.
+4. **Network construction**: within each predicted class, spectra are paired and scored by modified cosine similarity and by mass differences matched against a formula-difference database.
+5. **Network optimization**: edges are deduplicated, prioritized (seed–sample edges first), and pruned to a per-node top-*k* to yield the final two-layer network.
+
+---
+
+## 7. Notes and limitations
+
+- ContamScreen requires a pretrained model file (`.h5`); the model is not included in this repository.
+- The classifier assigns spectra to one of six predefined classes; spectra not belonging to these classes may still receive a label and should be treated with caution.
+- Similarity and mass-difference edges are **annotation hypotheses**, not confirmed structures. Final identification requires reference standards or orthogonal evidence.
+- Results are intended for research use in FCM safety assessment and do not by themselves constitute a food safety risk assessment.
+
+---
+
+## 8. Citation
+
+If you use ContamScan in your work, please cite:
+
+> *(Citation information to be added upon publication.)*
+
+---
+
+## 9. License
+
+*(License to be specified by the authors, e.g. MIT / GPL-3.0.)*
+
+---
+
+## 10. Contact
+
+For questions or bug reports, please open an issue on GitHub or contact the corresponding author.
