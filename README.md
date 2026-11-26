@@ -1,17 +1,17 @@
 # ContamScan
 
-ContamScan is a software toolkit for the suspect and untargeted screening of chemical risk substances in food contact materials (FCMs) using high-resolution mass spectrometry (HRMS) data. It consists of two modules: **ContamScreen** (machine learning–based screening) and **ContamConfirm** (two-layer molecular network–based structural annotation).
+ContamScan is a software toolkit for the suspect and non-targeted screening of chemical risk substances in food contact materials (FCMs) using high-resolution mass spectrometry (HRMS) data. It consists of two modules: **ContamScreen** (machine learning–based screening) and **ContamConfirm** (two-layer molecular network–based structural annotation).
 
 ---
 
-## 1. Overview
+# 1. Overview
 
 Food packaging systems contain numerous additives and non-intentionally added substances (NIAS), which make traditional target analysis insufficient for comprehensive safety assessment. ContamScan addresses this by combining:
 
 - **ContamScreen**: A machine learning classifier that assigns unknown MS/MS spectra to one of six chemical classes based on binned fragment-ion and neutral-loss features.
 - **ContamConfirm**: A two-layer molecular network (spectral similarity network + mass difference network) for rapid structural annotation of screened substances.
 
-### Covered chemical classes
+# Covered chemical classes
 
 | Class ID | Class name |
 |----------|------------|
@@ -24,7 +24,7 @@ Food packaging systems contain numerous additives and non-intentionally added su
 
 ---
 
-## 2. Requirements
+# 2. Requirements
 
 - Python 3.8+
 - NumPy
@@ -33,17 +33,41 @@ Food packaging systems contain numerous additives and non-intentionally added su
 - matchms
 - openpyxl
 
-Install dependencies:
+Install all dependencies with:
 
-```bash
-pip install numpy pandas tensorflow matchms openpyxl
-```
+    pip install -r requirements.txt
+
+The pinned versions are listed in `requirements.txt`.
 
 ---
 
-## 3. Input data
+# 3. Model file
 
-### 3.1 ContamScreen input (peak list)
+ContamScreen requires a pretrained model file (`.h5`). Because of its size (~275 MB), the model is not stored in this repository. Download it from the Releases page of this repository and place it in the `model/` directory.
+
+Expected project layout:
+
+    ContamScan/
+    ├── ContamScan_core.py
+    ├── requirements.txt
+    ├── README.md
+    ├── LICENSE
+    ├── .gitignore
+    ├── model/
+    │   └── screen_model.h5        <-- download from Releases
+    └── examples/
+        ├── peak_list_example.xlsx
+        ├── node_list_example.xlsx
+        ├── seed_list_example.xlsx
+        └── pmd_database_example.xlsx
+
+If you place the model elsewhere, pass its path via `model_path`.
+
+---
+
+# 4. Input data
+
+# 4.1 ContamScreen input (peak list)
 
 An Excel file (`.xlsx`) containing at least the following columns:
 
@@ -61,7 +85,7 @@ Adduct filtering is applied automatically according to the ionization mode:
 - Positive mode (`P`): `[M+H]+`, `[M+NH4]+`
 - Negative mode (`N`): `[M-H]-`
 
-### 3.2 ContamConfirm input
+# 4.2 ContamConfirm input
 
 1. **Node list** (`.xlsx`): sample spectra, with at least `PEPMASS` and `MSMS` columns. A `Name` / `name` / `Compound_Name` column is optional.
 2. **Seed list** (`.xlsx`): reference/seed spectra, with at least `PEPMASS` and `MSMS` columns. A `Class` column is optional.
@@ -69,53 +93,55 @@ Adduct filtering is applied automatically according to the ionization mode:
 
 The `MSMS` column should contain peaks separated by `;`, each in `mz intensity` format (e.g. `101.0234 0.85; 145.0678 0.42`).
 
+Example input files are provided in the `examples/` directory.
+
 ---
 
-## 4. Usage
+# 5. Usage
 
-### 4.1 ContamScreen
+# 5.1 ContamScreen
 
-```python
-from contam_core import run_contam_screen
+    from ContamScan_core import run_contam_screen
 
-run_contam_screen(
-    peak_list_path="peak_list.xlsx",
-    model_path="screen_model.h5",
-    output_path="screen_result.xlsx",
-    ion_mode="P",              # "P" for positive, "N" for negative
-    progress_callback=print,   # optional
-    log_callback=print,        # optional
-)
-```
+    run_contam_screen(
+        peak_list_path="examples/peak_list_example.xlsx",
+        model_path="model/screen_model.h5",
+        output_path="screen_result.xlsx",
+        ion_mode="P",              # "P" for positive, "N" for negative
+        progress_callback=print,   # optional
+        log_callback=print,        # optional
+    )
 
 **Output**: an Excel file containing `ID`, `FILES`, `PEPMASS`, `RT`, `MSMS`, `pred_probability`, `predicted_classID`, and `predicted_class`.
 
-### 4.2 ContamConfirm
+# 5.2 ContamConfirm
 
-```python
-from contam_core import run_contam_confirm
+    from ContamScan_core import run_contam_confirm
 
-run_contam_confirm(
-    node_list_path="node_list.xlsx",
-    seed_list_path="seed_list.xlsx",
-    formula_db_path="pmd_database.xlsx",
-    output_path="confirm_result.xlsx",
-    similarity_threshold=0.7,
-    similarity_top_n=10,
-    pmd_tolerance=0.01,
-    pmd_top_n=3,
-    progress_callback=print,   # optional
-    log_callback=print,        # optional
-)
-```
+    run_contam_confirm(
+        node_list_path="examples/node_list_example.xlsx",
+        seed_list_path="examples/seed_list_example.xlsx",
+        formula_db_path="examples/pmd_database_example.xlsx",
+        output_path="confirm_result.xlsx",
+        similarity_threshold=0.7,
+        similarity_top_n=10,
+        pmd_tolerance=0.01,
+        pmd_top_n=3,
+        progress_callback=print,   # optional
+        log_callback=print,        # optional
+    )
 
 **Output**: an Excel file with one sheet per chemical class (columns include `Edge_type`, `Index_1/2`, `Source_1/2`, `NAME_1/2`, `ID_1/2`, `PEPMASS_1/2`, `Similarity_score`, `Matched_Peaks`, `Mass`, `Formula_Difference`) plus a `Summary` sheet.
 
+# 5.3 Windows executable (optional)
+
+A standalone Windows executable is provided on the Releases page for users who prefer not to configure a Python environment. The executable still requires the model file described in Section 3.
+
 ---
 
-## 5. Key parameters
+# 6. Key parameters
 
-### ContamScreen
+# 6.1 ContamScreen
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -126,7 +152,7 @@ run_contam_confirm(
 | `end_neu` | 200 Da | Upper neutral-loss bound |
 | `ms2_error` | 0.01 Da | Tolerance for neutral-loss deduplication |
 
-### ContamConfirm
+### 6.2 ContamConfirm
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -137,26 +163,26 @@ run_contam_confirm(
 
 ---
 
-## 6. Method summary
+# 7. Method summary
 
 1. **Spectrum preprocessing**: peaks are normalized to the base peak, filtered (intensity > 1%, m/z below precursor), and converted to neutral-loss features.
 2. **Feature encoding**: fragment ions and neutral losses are binned (0.01 Da) into a fixed-length vector, with the maximum binned intensity retained per bin.
 3. **Classification**: a trained neural network predicts the chemical class and confidence for each spectrum; classes incompatible with the ionization mode are removed.
 4. **Network construction**: within each predicted class, spectra are paired and scored by modified cosine similarity and by mass differences matched against a formula-difference database.
-5. **Network optimization**: edges are deduplicated, prioritized (seed–sample edges first), and pruned to a per-node top-*k* to yield the final two-layer network.
+5. **Network optimization**: edges are deduplicated, prioritized (seed–sample edges first), and pruned to a per-node top-k to yield the final two-layer network.
 
 ---
 
-## 7. Notes and limitations
+# 8. Notes and limitations
 
-- ContamScreen requires a pretrained model file (`.h5`); the model is not included in this repository.
+- ContamScreen requires the pretrained model file described in Section 3. Without it, ContamScreen cannot run.
 - The classifier assigns spectra to one of six predefined classes; spectra not belonging to these classes may still receive a label and should be treated with caution.
 - Similarity and mass-difference edges are **annotation hypotheses**, not confirmed structures. Final identification requires reference standards or orthogonal evidence.
 - Results are intended for research use in FCM safety assessment and do not by themselves constitute a food safety risk assessment.
 
 ---
 
-## 8. Citation
+# 9. Citation
 
 If you use ContamScan in your work, please cite:
 
@@ -164,12 +190,12 @@ If you use ContamScan in your work, please cite:
 
 ---
 
-## 9. License
+# 10. License
 
-*(License to be specified by the authors, e.g. MIT / GPL-3.0.)*
+This project is licensed under the MIT License. See the `LICENSE` file for details.
 
 ---
 
-## 10. Contact
+## 11. Contact
 
 For questions or bug reports, please open an issue on GitHub or contact the corresponding author.
